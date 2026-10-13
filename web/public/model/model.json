@@ -1,0 +1,479 @@
+{
+ "vocab": [
+  "\n",
+  " ",
+  "!",
+  "\"",
+  "'",
+  "(",
+  ")",
+  ",",
+  "-",
+  ".",
+  ":",
+  ";",
+  "?",
+  "«",
+  "»",
+  "І",
+  "А",
+  "Б",
+  "В",
+  "Г",
+  "Д",
+  "Е",
+  "Ж",
+  "З",
+  "И",
+  "К",
+  "Л",
+  "М",
+  "Н",
+  "О",
+  "П",
+  "Р",
+  "С",
+  "Т",
+  "У",
+  "Ф",
+  "Х",
+  "Ш",
+  "Ы",
+  "Я",
+  "а",
+  "б",
+  "в",
+  "г",
+  "д",
+  "е",
+  "ж",
+  "з",
+  "и",
+  "й",
+  "к",
+  "л",
+  "м",
+  "н",
+  "о",
+  "п",
+  "р",
+  "с",
+  "т",
+  "у",
+  "ф",
+  "х",
+  "ц",
+  "ч",
+  "ш",
+  "щ",
+  "ы",
+  "ь",
+  "ю",
+  "я",
+  "і",
+  "Ғ",
+  "ғ",
+  "Қ",
+  "қ",
+  "ң",
+  "Ү",
+  "ү",
+  "Ұ",
+  "ұ",
+  "һ",
+  "Ә",
+  "ә",
+  "Ө",
+  "ө",
+  "—"
+ ],
+ "n_layer": 4,
+ "n_head": 4,
+ "n_embd": 192,
+ "block_size": 128,
+ "dtype": "f32",
+ "params": [
+  {
+   "name": "wte",
+   "shape": [
+    86,
+    192
+   ],
+   "offset": 0
+  },
+  {
+   "name": "wpe",
+   "shape": [
+    128,
+    192
+   ],
+   "offset": 16512
+  },
+  {
+   "name": "h.0.ln_1.weight",
+   "shape": [
+    192
+   ],
+   "offset": 41088
+  },
+  {
+   "name": "h.0.ln_1.bias",
+   "shape": [
+    192
+   ],
+   "offset": 41280
+  },
+  {
+   "name": "h.0.attn.c_attn.weight",
+   "shape": [
+    192,
+    576
+   ],
+   "offset": 41472
+  },
+  {
+   "name": "h.0.attn.c_attn.bias",
+   "shape": [
+    576
+   ],
+   "offset": 152064
+  },
+  {
+   "name": "h.0.attn.c_proj.weight",
+   "shape": [
+    192,
+    192
+   ],
+   "offset": 152640
+  },
+  {
+   "name": "h.0.attn.c_proj.bias",
+   "shape": [
+    192
+   ],
+   "offset": 189504
+  },
+  {
+   "name": "h.0.ln_2.weight",
+   "shape": [
+    192
+   ],
+   "offset": 189696
+  },
+  {
+   "name": "h.0.ln_2.bias",
+   "shape": [
+    192
+   ],
+   "offset": 189888
+  },
+  {
+   "name": "h.0.mlp.c_fc.weight",
+   "shape": [
+    192,
+    768
+   ],
+   "offset": 190080
+  },
+  {
+   "name": "h.0.mlp.c_fc.bias",
+   "shape": [
+    768
+   ],
+   "offset": 337536
+  },
+  {
+   "name": "h.0.mlp.c_proj.weight",
+   "shape": [
+    768,
+    192
+   ],
+   "offset": 338304
+  },
+  {
+   "name": "h.0.mlp.c_proj.bias",
+   "shape": [
+    192
+   ],
+   "offset": 485760
+  },
+  {
+   "name": "h.1.ln_1.weight",
+   "shape": [
+    192
+   ],
+   "offset": 485952
+  },
+  {
+   "name": "h.1.ln_1.bias",
+   "shape": [
+    192
+   ],
+   "offset": 486144
+  },
+  {
+   "name": "h.1.attn.c_attn.weight",
+   "shape": [
+    192,
+    576
+   ],
+   "offset": 486336
+  },
+  {
+   "name": "h.1.attn.c_attn.bias",
+   "shape": [
+    576
+   ],
+   "offset": 596928
+  },
+  {
+   "name": "h.1.attn.c_proj.weight",
+   "shape": [
+    192,
+    192
+   ],
+   "offset": 597504
+  },
+  {
+   "name": "h.1.attn.c_proj.bias",
+   "shape": [
+    192
+   ],
+   "offset": 634368
+  },
+  {
+   "name": "h.1.ln_2.weight",
+   "shape": [
+    192
+   ],
+   "offset": 634560
+  },
+  {
+   "name": "h.1.ln_2.bias",
+   "shape": [
+    192
+   ],
+   "offset": 634752
+  },
+  {
+   "name": "h.1.mlp.c_fc.weight",
+   "shape": [
+    192,
+    768
+   ],
+   "offset": 634944
+  },
+  {
+   "name": "h.1.mlp.c_fc.bias",
+   "shape": [
+    768
+   ],
+   "offset": 782400
+  },
+  {
+   "name": "h.1.mlp.c_proj.weight",
+   "shape": [
+    768,
+    192
+   ],
+   "offset": 783168
+  },
+  {
+   "name": "h.1.mlp.c_proj.bias",
+   "shape": [
+    192
+   ],
+   "offset": 930624
+  },
+  {
+   "name": "h.2.ln_1.weight",
+   "shape": [
+    192
+   ],
+   "offset": 930816
+  },
+  {
+   "name": "h.2.ln_1.bias",
+   "shape": [
+    192
+   ],
+   "offset": 931008
+  },
+  {
+   "name": "h.2.attn.c_attn.weight",
+   "shape": [
+    192,
+    576
+   ],
+   "offset": 931200
+  },
+  {
+   "name": "h.2.attn.c_attn.bias",
+   "shape": [
+    576
+   ],
+   "offset": 1041792
+  },
+  {
+   "name": "h.2.attn.c_proj.weight",
+   "shape": [
+    192,
+    192
+   ],
+   "offset": 1042368
+  },
+  {
+   "name": "h.2.attn.c_proj.bias",
+   "shape": [
+    192
+   ],
+   "offset": 1079232
+  },
+  {
+   "name": "h.2.ln_2.weight",
+   "shape": [
+    192
+   ],
+   "offset": 1079424
+  },
+  {
+   "name": "h.2.ln_2.bias",
+   "shape": [
+    192
+   ],
+   "offset": 1079616
+  },
+  {
+   "name": "h.2.mlp.c_fc.weight",
+   "shape": [
+    192,
+    768
+   ],
+   "offset": 1079808
+  },
+  {
+   "name": "h.2.mlp.c_fc.bias",
+   "shape": [
+    768
+   ],
+   "offset": 1227264
+  },
+  {
+   "name": "h.2.mlp.c_proj.weight",
+   "shape": [
+    768,
+    192
+   ],
+   "offset": 1228032
+  },
+  {
+   "name": "h.2.mlp.c_proj.bias",
+   "shape": [
+    192
+   ],
+   "offset": 1375488
+  },
+  {
+   "name": "h.3.ln_1.weight",
+   "shape": [
+    192
+   ],
+   "offset": 1375680
+  },
+  {
+   "name": "h.3.ln_1.bias",
+   "shape": [
+    192
+   ],
+   "offset": 1375872
+  },
+  {
+   "name": "h.3.attn.c_attn.weight",
+   "shape": [
+    192,
+    576
+   ],
+   "offset": 1376064
+  },
+  {
+   "name": "h.3.attn.c_attn.bias",
+   "shape": [
+    576
+   ],
+   "offset": 1486656
+  },
+  {
+   "name": "h.3.attn.c_proj.weight",
+   "shape": [
+    192,
+    192
+   ],
+   "offset": 1487232
+  },
+  {
+   "name": "h.3.attn.c_proj.bias",
+   "shape": [
+    192
+   ],
+   "offset": 1524096
+  },
+  {
+   "name": "h.3.ln_2.weight",
+   "shape": [
+    192
+   ],
+   "offset": 1524288
+  },
+  {
+   "name": "h.3.ln_2.bias",
+   "shape": [
+    192
+   ],
+   "offset": 1524480
+  },
+  {
+   "name": "h.3.mlp.c_fc.weight",
+   "shape": [
+    192,
+    768
+   ],
+   "offset": 1524672
+  },
+  {
+   "name": "h.3.mlp.c_fc.bias",
+   "shape": [
+    768
+   ],
+   "offset": 1672128
+  },
+  {
+   "name": "h.3.mlp.c_proj.weight",
+   "shape": [
+    768,
+    192
+   ],
+   "offset": 1672896
+  },
+  {
+   "name": "h.3.mlp.c_proj.bias",
+   "shape": [
+    192
+   ],
+   "offset": 1820352
+  },
+  {
+   "name": "ln_f.weight",
+   "shape": [
+    192
+   ],
+   "offset": 1820544
+  },
+  {
+   "name": "ln_f.bias",
+   "shape": [
+    192
+   ],
+   "offset": 1820736
+  }
+ ]
+}
