@@ -82,6 +82,10 @@ cd ml
 
 PyTorch · NumPy · TypeScript · React 19 · Vite · Vitest
 
+## License
+
+The code is [MIT](LICENSE). The training texts are in the public domain (see Credits).
+
 ## Credits
 
 The training texts are public-domain works by Kazakh authors who died between 1881 and 1938,
