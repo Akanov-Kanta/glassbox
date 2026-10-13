@@ -1,7 +1,8 @@
 // Parsing and validation of the exported weights (SPEC.md, "Weight file format").
 //
-// model.json describes the tensors; model.bin is one flat little-endian float32 array. Every tensor is
-// handed to the model as a zero-copy Float32Array view into that array.
+// model.json describes the tensors; model.bin is one flat little-endian array of float32 or float16 values.
+// float32 files are viewed zero-copy; float16 files are widened to float32 once, on load (exactly: every
+// float16 value is representable in float32), and every tensor is a Float32Array view into the result.
 
 import type { ModelConfig } from './types';
 
@@ -19,7 +20,7 @@ export interface ModelMeta {
 export interface ParamEntry {
   name: string;
   shape: number[];
-  /** in floats (not bytes) from the start of model.bin */
+  /** in elements (not bytes) from the start of model.bin */
   offset: number;
 }
 
@@ -46,7 +47,7 @@ export interface Weights {
   layers: LayerWeights[];
   lnfW: Float32Array; // [C]
   lnfB: Float32Array; // [C]
-  /** total number of floats across all tensors */
+  /** total number of values across all tensors */
   paramCount: number;
 }
 
@@ -80,10 +81,11 @@ function parseConfig(meta: ModelMeta): ModelConfig {
   return config;
 }
 
+const hostIsLittleEndian = new Uint8Array(new Uint16Array([1]).buffer)[0] === 1;
+
 /** model.bin as float32. Typed arrays use the host byte order, so convert on (rare) big-endian hosts. */
 function littleEndianFloats(buffer: ArrayBuffer): Float32Array {
   if (buffer.byteLength % 4 !== 0) fail(`model.bin is ${buffer.byteLength} bytes, not a whole number of float32s`);
-  const hostIsLittleEndian = new Uint8Array(new Uint16Array([1]).buffer)[0] === 1;
   if (hostIsLittleEndian) return new Float32Array(buffer);
   const view = new DataView(buffer);
   const out = new Float32Array(buffer.byteLength / 4);
@@ -91,14 +93,41 @@ function littleEndianFloats(buffer: ArrayBuffer): Float32Array {
   return out;
 }
 
+/** IEEE 754 binary16 bits -> number. Exact: 1 sign bit, 5 exponent bits (bias 15), 10 mantissa bits. */
+export function halfToFloat(h: number): number {
+  const sign = h & 0x8000 ? -1 : 1;
+  const exp = (h >> 10) & 0x1f;
+  const frac = h & 0x3ff;
+  if (exp === 0) return sign * frac * 2 ** -24; // zero and subnormals: 0.frac × 2^-14
+  if (exp === 0x1f) return frac ? NaN : sign * Infinity;
+  return sign * (1 + frac / 1024) * 2 ** (exp - 15);
+}
+
+/** model.bin as float16, widened to float32 through a 65,536-entry lookup table (one pass over the file). */
+function littleEndianHalves(buffer: ArrayBuffer): Float32Array {
+  if (buffer.byteLength % 2 !== 0) fail(`model.bin is ${buffer.byteLength} bytes, not a whole number of float16s`);
+  const table = new Float32Array(65536);
+  for (let h = 0; h < 65536; h++) table[h] = halfToFloat(h);
+  const n = buffer.byteLength / 2;
+  const out = new Float32Array(n);
+  if (hostIsLittleEndian) {
+    const bits = new Uint16Array(buffer);
+    for (let i = 0; i < n; i++) out[i] = table[bits[i]];
+  } else {
+    const view = new DataView(buffer);
+    for (let i = 0; i < n; i++) out[i] = table[view.getUint16(i * 2, true)];
+  }
+  return out;
+}
+
 /** Validates model.json against SPEC.md and slices model.bin into named tensors. Throws on any mismatch. */
 export function parseWeights(meta: ModelMeta, buffer: ArrayBuffer): Weights {
   if (meta === null || typeof meta !== 'object') fail('model.json is not an object');
   const config = parseConfig(meta);
-  if (meta.dtype !== 'f32') fail(`dtype must be "f32", got ${JSON.stringify(meta.dtype)}`);
+  if (meta.dtype !== 'f32' && meta.dtype !== 'f16') fail(`dtype must be "f32" or "f16", got ${JSON.stringify(meta.dtype)}`);
   if (!Array.isArray(meta.params)) fail('"params" must be an array');
 
-  const data = littleEndianFloats(buffer);
+  const data = meta.dtype === 'f16' ? littleEndianHalves(buffer) : littleEndianFloats(buffer);
   const entries = new Map<string, ParamEntry>();
   for (const p of meta.params) {
     if (entries.has(p.name)) fail(`duplicate tensor "${p.name}"`);
@@ -115,7 +144,7 @@ export function parseWeights(meta: ModelMeta, buffer: ArrayBuffer): Weights {
     if (!sameShape) fail(`tensor "${name}" has shape [${p.shape}], expected [${shape}]`);
     const size = shape.reduce((a, b) => a * b, 1);
     if (!Number.isInteger(p.offset) || p.offset < 0 || p.offset + size > data.length) {
-      fail(`tensor "${name}" (offset ${p.offset}, ${size} floats) does not fit in model.bin (${data.length} floats)`);
+      fail(`tensor "${name}" (offset ${p.offset}, ${size} values) does not fit in model.bin (${data.length} values)`);
     }
     paramCount += size;
     return data.subarray(p.offset, p.offset + size);

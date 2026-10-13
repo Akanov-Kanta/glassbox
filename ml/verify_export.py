@@ -23,15 +23,16 @@ TOL = 1e-4
 def load():
     meta = json.loads((OUT / "model.json").read_text())
     raw = (OUT / "model.bin").read_bytes()
-    assert len(raw) % 4 == 0
-    blob = np.frombuffer(raw, dtype="<f4")
+    np_dtype = {"f32": "<f4", "f16": "<f2"}[meta["dtype"]]
+    assert len(raw) % np.dtype(np_dtype).itemsize == 0
+    blob = np.frombuffer(raw, dtype=np_dtype)
     W, expected_offset = {}, 0
     for p in meta["params"]:
         n = int(np.prod(p["shape"]))
         assert p["offset"] == expected_offset, f"{p['name']}: offset {p['offset']} != {expected_offset}"
         W[p["name"]] = blob[p["offset"]:p["offset"] + n].reshape(p["shape"]).astype(np.float64)
         expected_offset += n
-    assert expected_offset == blob.size, f"file has {blob.size} floats, table covers {expected_offset}"
+    assert expected_offset == blob.size, f"file has {blob.size} values, table covers {expected_offset}"
     return meta, W
 
 

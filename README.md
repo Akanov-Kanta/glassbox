@@ -5,6 +5,8 @@ classic Kazakh poetry. It runs entirely in your browser on a transformer engine 
 TypeScript, with no ML libraries. While it writes, you can open up any character it produced and see the
 characters it considered and where each of its 16 attention heads was looking.
 
+**Live demo: [glassbox-fawn.vercel.app](https://glassbox-fawn.vercel.app)**
+
 ![Glassbox generating Kazakh verse, with the next-character candidates and per-head attention for the selected character](docs/screenshot.png)
 
 ## What it shows
@@ -16,7 +18,7 @@ characters it considered and where each of its 16 attention heads was looking.
   covers matrix multiply, LayerNorm, GELU, causal multi-head attention, a KV cache, and temperature / top-k
   sampling. It generates about 2.3 ms per character in Chrome on an M4.
 - **Verified against PyTorch.** On a real 128-character validation snippet, the engine matches PyTorch to
-  within 6×10⁻⁷ on the logits and 3×10⁻⁷ on the attention weights. An independent NumPy re-implementation
+  within 1×10⁻⁶ on the logits and 3×10⁻⁷ on the attention weights. An independent NumPy re-implementation
   checks the exported file format too.
 - **Interpretability UI.** Each generated character is tinted by how confident the model was. Select one
   to see the top-10 candidates with their probabilities, surprisal and entropy, the context shaded by
@@ -31,7 +33,7 @@ characters it considered and where each of its 16 attention heads was looking.
 | Tokenizer | characters: 86 symbols (Kazakh Cyrillic, punctuation, space, newline) |
 | Training | AdamW, cosine LR (peak 2e-3), batch 64 × 128, dropout 0.3, 4,500 steps on Apple MPS |
 | Loss | train 1.416, validation **1.711** nats/char (best checkpoint, step 3,900) |
-| Weights | 7.3 MB of float32, loaded straight into `Float32Array` views |
+| Weights | 3.6 MB of float16, widened to float32 in the browser. Rounding leaves the full validation loss unchanged (1.7170 both ways) |
 
 It writes text with the shape of Kazakh verse: short lines, rhyme-like endings, dialogue with dashes. At
 this size most of the words are plausible inventions rather than real meaning. That's expected for a
@@ -48,8 +50,8 @@ Wikisource → ml/data.py (clean) → ml/train.py (PyTorch, MPS) → ml/export.p
 
 - [`SPEC.md`](SPEC.md) is the contract between the two halves: the architecture, the binary weight
   format, and the parity fixture.
-- [`ml/`](ml) holds the corpus pipeline, the model (`model.py`, hand-written), training, export, and the
-  NumPy verifier. [`ml/README.md`](ml/README.md) has the full training notes.
+- [`ml/`](ml) holds the corpus pipeline, the model (`model.py`, hand-written), training, export to float16,
+  and the NumPy verifier. [`ml/README.md`](ml/README.md) has the full training notes.
 - [`web/src/engine/`](web/src/engine) is the inference engine. It starts in `gpt.ts`: one `advance()`
   pushes tokens through the network and appends to a KV cache, and both `forward()` and each generation
   step reuse it.

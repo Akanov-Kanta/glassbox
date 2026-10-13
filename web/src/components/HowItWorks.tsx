@@ -78,8 +78,21 @@ export function HowItWorks({ preview, weightBytes }: Props) {
       title: 'Exported to one flat file',
       body: (
         <>
-          Every tensor concatenated as little-endian float32: {formatBytes(bytes)}, described by a small JSON
-          index of names, shapes and offsets.
+          {training.export?.dtype === 'f16' ? (
+            <>
+              Every weight rounded to float16 and concatenated: {formatBytes(bytes)}, half the size of float32,
+              widened back to float32 in your browser. Full validation loss{' '}
+              {training.export.val_loss_f32.toFixed(4) === training.export.val_loss_exported.toFixed(4)
+                ? `is unchanged by the rounding (${training.export.val_loss_f32.toFixed(4)})`
+                : `goes from ${training.export.val_loss_f32.toFixed(4)} to ${training.export.val_loss_exported.toFixed(4)}`}
+              . A small JSON index holds the names, shapes and offsets.
+            </>
+          ) : (
+            <>
+              Every tensor concatenated as little-endian float32: {formatBytes(bytes)}, described by a small JSON
+              index of names, shapes and offsets.
+            </>
+          )}
         </>
       ),
     },

@@ -35,13 +35,14 @@ probabilities while it writes.
 {
   "vocab": ["\n", " ", "!", "..."],
   "n_layer": 4, "n_head": 4, "n_embd": 192, "block_size": 128,
-  "dtype": "f32",
+  "dtype": "f16",
   "params": [{ "name": "wte", "shape": [65, 192], "offset": 0 }, "..."]
 }
 ```
 
-`web/public/model/model.bin`: little-endian float32, the tensors concatenated. `offset` is in **floats**
-(not bytes) from the start of the file. Every matrix is row-major. **Linear weights are stored `[in, out]`**
+`web/public/model/model.bin`: the tensors concatenated, little-endian, as `dtype`: `"f32"` (float32) or
+`"f16"` (IEEE binary16; the shipped model, half the download). The engine widens f16 to float32 on load, which
+is exact. `offset` is in **elements** (not bytes) from the start of the file. Every matrix is row-major. **Linear weights are stored `[in, out]`**
 (so `y = x @ W`), i.e. the transpose of PyTorch's `nn.Linear.weight`.
 
 Tensor names and shapes (`C = n_embd`, `V = vocab.length`, `T = block_size`):
@@ -60,7 +61,8 @@ Tensor names and shapes (`C = n_embd`, `V = vocab.length`, `T = block_size`):
 
 ## Parity fixture
 
-`web/public/model/reference.json`, produced by the PyTorch model in eval mode from the exported weights:
+`web/public/model/reference.json`, produced by the PyTorch model in eval mode from the exported weights
+(for f16: the checkpoint with every weight rounded to float16, i.e. exactly what the engine computes with):
 
 ```json
 {
