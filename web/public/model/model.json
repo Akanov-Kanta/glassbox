@@ -91,7 +91,7 @@
  "n_head": 4,
  "n_embd": 192,
  "block_size": 128,
- "dtype": "f32",
+ "dtype": "f16",
  "params": [
   {
    "name": "wte",

@@ -52,7 +52,10 @@ function metaToConfig(meta: ModelMeta): ModelConfig {
   };
 }
 
-/** Number of float32 values the weight file must contain, from the tensor table. */
+/** Bytes per stored value for the weight file's dtype (SPEC.md: "f32" or "f16"). */
+export const bytesPerValue = (meta: ModelMeta): number => (meta.dtype === 'f16' ? 2 : 4);
+
+/** Number of values the weight file must contain, from the tensor table. */
 export function expectedFloats(meta: ModelMeta): number {
   let end = 0;
   for (const p of meta.params) {
@@ -134,7 +137,7 @@ export async function loadApp(cb: LoadCallbacks = {}): Promise<LoadedApp> {
   }
 
   const config = metaToConfig(meta);
-  const floats = expectedFloats(meta);
+  const bytes = expectedFloats(meta) * bytesPerValue(meta);
   const trainingSource: DataSource = training ? 'real' : 'mock';
   let report = training;
   if (!report) {
@@ -142,19 +145,19 @@ export async function loadApp(cb: LoadCallbacks = {}): Promise<LoadedApp> {
     report = createMockTraining(paramsFromMeta(meta), 0);
   }
   cb.onPreview?.({ config, paramCount: paramsFromMeta(meta), training: report, modelSource: 'real', trainingSource });
-  cb.onProgress?.({ phase: 'weights', loaded: 0, total: floats * 4 });
+  cb.onProgress?.({ phase: 'weights', loaded: 0, total: bytes });
 
   const [engine, buffer] = await Promise.all([
     loadEngine(),
     fetchWithProgress(
       `${MODEL_DIR}model.bin`,
-      floats * 4,
+      bytes,
       (loaded, total) => cb.onProgress?.({ phase: 'weights', loaded, total }),
       signal,
     ),
   ]);
-  if (buffer.byteLength < floats * 4) {
-    throw new Error(`The weight file is truncated: got ${buffer.byteLength} bytes, expected ${floats * 4}.`);
+  if (buffer.byteLength < bytes) {
+    throw new Error(`The weight file is truncated: got ${buffer.byteLength} bytes, expected ${bytes}.`);
   }
   cb.onProgress?.({ phase: 'init', loaded: buffer.byteLength, total: buffer.byteLength });
 

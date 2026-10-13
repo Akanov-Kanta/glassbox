@@ -1,8 +1,8 @@
 """Export the best checkpoint to the browser format described in SPEC.md.
 
 Writes to web/public/model/:
-  model.json      vocab, config, and the tensor table (name, shape, offset in floats)
-  model.bin       little-endian float32 tensors, concatenated; Linear weights stored [in, out]
+  model.json      vocab, config, dtype, and the tensor table (name, shape, offset in elements)
+  model.bin       little-endian float16 tensors (DTYPE), concatenated; Linear weights stored [in, out]
   reference.json  parity fixture (logits at the last position + last-layer head-0 attention)
   training.json   training report (corpus, loss curves, timing, samples)
 
@@ -28,6 +28,10 @@ SAMPLE_SEED = 1904
 N_SAMPLES = 4
 SAMPLE_LEN = 200
 TEMPERATURE = 0.8
+# float16 halves the download (7.3 MB -> 3.6 MB). The engine upcasts to float32 on load, so the shipped model
+# is exactly "the checkpoint with every weight rounded to float16"; main() measures what that rounding costs.
+DTYPE = "f16"
+NP_DTYPE = {"f32": "<f4", "f16": "<f2"}
 
 
 def tensor_table(model: GPT) -> list[tuple[str, np.ndarray]]:
@@ -62,23 +66,23 @@ def write_weights(model: GPT, vocab: list[str]) -> None:
         params.append({"name": name, "shape": list(arr.shape), "offset": offset})
         chunks.append(arr.ravel())
         offset += arr.size
-    blob = np.concatenate(chunks).astype("<f4")
+    blob = np.concatenate(chunks).astype(NP_DTYPE[DTYPE])
     assert blob.size == offset
     (OUT / "model.bin").write_bytes(blob.tobytes())
     meta = {
         "vocab": vocab,
         "n_layer": cfg.n_layer, "n_head": cfg.n_head, "n_embd": cfg.n_embd, "block_size": cfg.block_size,
-        "dtype": "f32",
+        "dtype": DTYPE,
         "params": params,
     }
     (OUT / "model.json").write_text(json.dumps(meta, ensure_ascii=False, indent=1))
-    print(f"model.bin: {blob.size:,} floats ({blob.nbytes / 1e6:.2f} MB), {len(params)} tensors")
+    print(f"model.bin: {blob.size:,} {DTYPE} values ({blob.nbytes / 1e6:.2f} MB), {len(params)} tensors")
 
 
 def reload_from_export(cfg: GPTConfig) -> GPT:
     """Build a fresh model from model.bin, so the fixture comes from exactly the exported weights."""
     meta = json.loads((OUT / "model.json").read_text())
-    blob = np.fromfile(OUT / "model.bin", dtype="<f4")
+    blob = np.fromfile(OUT / "model.bin", dtype=NP_DTYPE[meta["dtype"]]).astype(np.float32)
     model = GPT(cfg)
     sd = model.state_dict()
     for p in meta["params"]:
@@ -103,7 +107,7 @@ def write_reference(model: GPT, vocab: list[str]) -> None:
     snippet = text[start:start + T]
     assert len(snippet) == T
     ids = [stoi[c] for c in snippet]
-    m = model.double().eval()  # float64 forward over the float32 weights: the most exact reference
+    m = model.double().eval()  # float64 forward over the exported weights: the most exact reference
     with torch.no_grad():
         logits, _, attns = m(torch.tensor([ids]), return_attn=True)
     ref = {
@@ -115,6 +119,31 @@ def write_reference(model: GPT, vocab: list[str]) -> None:
     (OUT / "reference.json").write_text(json.dumps(ref, ensure_ascii=False))
     model.float()
     print(f"reference.json: {T} tokens from validation text: {snippet[:60]!r}...")
+
+
+def rounded(model: GPT, dtype: str) -> GPT:
+    """A copy of the model with every weight rounded to `dtype` and back (what the browser computes with)."""
+    out = GPT(model.cfg)
+    out.load_state_dict({k: torch.from_numpy(v.detach().cpu().numpy().astype(NP_DTYPE[dtype]).astype(np.float32))
+                         for k, v in model.state_dict().items()})
+    return out.eval()
+
+
+@torch.no_grad()
+def val_loss(model: GPT, vocab: list[str]) -> float:
+    """Mean cross-entropy over the whole validation split, in non-overlapping block_size windows."""
+    text = (DATA / "corpus.txt").read_text()
+    stoi = {c: i for i, c in enumerate(vocab)}
+    ids = torch.tensor([stoi[c] for c in text[int(0.9 * len(text)):] if c in stoi])
+    T = model.cfg.block_size
+    n = (len(ids) - 1) // T
+    x = ids[: n * T].view(n, T)
+    y = ids[1: n * T + 1].view(n, T)
+    total = 0.0
+    for i in range(0, n, 64):
+        logits = model(x[i:i + 64])[0]
+        total += torch.nn.functional.cross_entropy(logits.reshape(-1, logits.size(-1)), y[i:i + 64].reshape(-1), reduction="sum").item()
+    return total / (n * T)
 
 
 def samples(model: GPT, vocab: list[str]) -> list[str]:
@@ -129,7 +158,7 @@ def samples(model: GPT, vocab: list[str]) -> list[str]:
     return out
 
 
-def write_training_report(model: GPT, vocab: list[str], ckpt: dict) -> list[str]:
+def write_training_report(model: GPT, vocab: list[str], ckpt: dict, export: dict) -> list[str]:
     log = json.loads((RUNS / "log.json").read_text())
     meta = json.loads((DATA / "meta.json").read_text())
     best = log["steps"].index(log["best_step"])
@@ -158,6 +187,7 @@ def write_training_report(model: GPT, vocab: list[str], ckpt: dict) -> list[str]
         "final": {"train_loss": log["train_loss"][best], "val_loss": log["val_loss"][best], "step": log["best_step"]},
         "sampling": {"temperature": TEMPERATURE, "length": SAMPLE_LEN, "prompt": "\n", "seed": SAMPLE_SEED},
         "samples": smp,
+        "export": export,
     }
     (OUT / "training.json").write_text(json.dumps(report, ensure_ascii=False, indent=1))
     print(f"training.json: best step {log['best_step']}, train {report['final']['train_loss']}, val {report['final']['val_loss']}")
@@ -175,12 +205,20 @@ def main():
 
     write_weights(model, vocab)
     exported = reload_from_export(cfg)
-    # Sanity: the exported weights reproduce the checkpoint's outputs bit-for-bit.
+    # Sanity: the exported file reproduces the rounded checkpoint's outputs bit-for-bit.
     x = torch.randint(len(vocab), (1, cfg.block_size), generator=torch.Generator().manual_seed(0))
     with torch.no_grad():
-        assert torch.equal(model(x)[0], exported(x)[0]), "export round-trip mismatch"
+        assert torch.equal(rounded(model, DTYPE)(x)[0], exported(x)[0]), "export round-trip mismatch"
+    # What the rounding costs: validation loss of the float32 checkpoint vs the exported weights.
+    export = {
+        "dtype": DTYPE,
+        "bytes": (OUT / "model.bin").stat().st_size,
+        "val_loss_f32": round(val_loss(model, vocab), 5),
+        "val_loss_exported": round(val_loss(exported, vocab), 5),
+    }
+    print(f"full validation loss: f32 {export['val_loss_f32']}, exported {DTYPE} {export['val_loss_exported']}")
     write_reference(exported, vocab)
-    for s in write_training_report(exported, vocab, ckpt):
+    for s in write_training_report(exported, vocab, ckpt, export):
         print("---\n" + s)
 
 

@@ -207,7 +207,7 @@ describe('loading', () => {
     a.meta.params.push({ name: 'lm_head.weight', shape: [1], offset: 0 });
     expect(() => createModel(a.meta, a.buffer)).toThrow(/unexpected tensors: lm_head.weight/);
     const b = build();
-    b.meta.dtype = 'f16';
+    b.meta.dtype = 'bf16';
     expect(() => createModel(b.meta, b.buffer)).toThrow(/dtype/);
     const c = build();
     c.meta.n_head = 3;

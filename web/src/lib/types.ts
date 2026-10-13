@@ -22,6 +22,8 @@ export interface TrainingReport {
   val_loss: number[];
   final: { train_loss: number; val_loss: number };
   samples: string[];
+  /** how the weights were exported (ml/export.py): dtype, file size, and full-validation loss before / after rounding */
+  export?: { dtype: string; bytes: number; val_loss_f32: number; val_loss_exported: number };
   optimizer?: string;
   batch_size?: number;
   learning_rate?: number;

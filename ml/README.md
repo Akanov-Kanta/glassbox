@@ -1,7 +1,7 @@
 # ml/: training the Glassbox model
 
 A 1.8M-parameter character-level GPT, trained from scratch in PyTorch on Kazakh classical literature,
-then exported to a flat float32 file that the browser engine (`web/src/engine/`) runs without any ML library.
+then exported to a flat float16 file that the browser engine (`web/src/engine/`) runs without any ML library.
 The file format and architecture contract live in [`../SPEC.md`](../SPEC.md).
 
 ## Corpus
@@ -69,15 +69,21 @@ cd ml
 
 ## Exported files (`web/public/model/`)
 
+`export.py` rounds every weight to float16 (`DTYPE`), which halves the download from 7.3 MB to 3.6 MB.
+The reference fixture is computed from the rounded weights, so the engine's 1e-4 parity check covers exactly
+the model that ships. Rounding does not move the loss over the whole validation split: 1.71698 nats/char for
+the float32 checkpoint and 1.71698 for the float16 export. (That full-split number is a little above the
+1.711 that training reports, which is an estimate over random batches.)
+
 | file | size | contents |
 |---|---|---|
-| `model.bin` | 7.3 MB | 1,820,928 little-endian float32, Linear weights stored `[in, out]` |
+| `model.bin` | 3.6 MB | 1,820,928 little-endian float16, Linear weights stored `[in, out]` |
 | `model.json` | 5.6 KB | vocab, config, tensor table (name, shape, offset in floats) |
 | `reference.json` | 230 KB | parity fixture: 128 validation characters, last-position logits, last-layer head-0 attention |
 | `training.json` | 4.5 KB | corpus info, loss curves, timing, 4 samples at temperature 0.8 |
 
 `verify_export.py` reloads `model.bin` with NumPy alone, re-implements the forward pass from SPEC.md,
-and checks it against `reference.json`. The maximum difference is 3.6e-15 on logits and 1.4e-15 on attention,
+and checks it against `reference.json`. The maximum difference is 3.6e-15 on logits and 1.2e-15 on attention,
 against a tolerance of 1e-4.
 
 ## Sample (temperature 0.8, unconditional)
